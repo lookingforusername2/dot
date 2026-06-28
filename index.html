@@ -258,11 +258,19 @@ img{max-width:100%;display:block}
 
 /* ── PLAYER mobile (≤ 600 px) ── */
 @media(max-width:600px){
-  .pbar{bottom:12px}
-  .pb-row{padding:8px 10px 8px 8px}
-  .pb-cov{width:38px;height:38px;font-size:.95rem;margin-right:10px}
+  .pbar{
+    bottom:10px;
+    width:min(calc(100vw - 20px), 420px);
+    border-radius:14px;
+  }
+  .pb-row{padding:7px 8px 7px 8px}
+  .pb-cov{width:36px;height:36px;font-size:.9rem;margin-right:9px}
+  .pb-ti{font-size:.75rem}
+  .pb-ar{font-size:.63rem}
   .pb-vol{display:none}
   .pb-divider{display:none}
+  .pb-center{gap:4px;margin-right:8px}
+  .pb-time{font-size:.52rem;min-width:20px}
 }
 
 /* ── GALLERY ── */
