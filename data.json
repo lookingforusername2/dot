@@ -35,7 +35,15 @@
       "cover_bg": "linear-gradient(135deg,#1a1520,#2a1f35)"
     }
   ],
-  "gallery": [],
+  "gallery": [
+    {
+      "id": "1782660396336",
+      "file": "images/cover_4_.jpg",
+      "caption": "",
+      "emoji": "📷",
+      "bg": "linear-gradient(135deg,#161616,#222)"
+    }
+  ],
   "posts": [
     {
       "id": "1",
