@@ -626,6 +626,7 @@ function closeModal(){
   modal.classList.remove('on');
   pendingFilePath.music=null;
   pendingFilePath.gallery=null;
+  pendingFilePath.cover=null;
 }
 
 window.openModal=function(section,idx){
@@ -641,6 +642,7 @@ window.openModal=function(section,idx){
   if(section==='music'){
     setupUploadZone('mf-upzone','mf-upinp','mf-upst','music',key=>{ pendingFilePath.music=key; });
     if(item?.file) $('mf-upst').innerHTML=`<div class="upprev"><audio controls src="${cdnOf(item.file)}"></audio></div>`;
+    setupUploadZone('mf-covzone','mf-covinp','mf-covst','images',key=>{ pendingFilePath.cover=key; });
   }
   if(section==='gallery'){
     setupUploadZone('mf-upzone','mf-upinp','mf-upst','images',key=>{ pendingFilePath.gallery=key; });
@@ -665,7 +667,8 @@ function buildForm(section,item){
     ${inp('artist','Artist',v('artist'),'نام هنرمند')}
     ${inp('genre','Genre',v('genre'),'Indie Folk')}
     ${upBlock('audio/mp3,audio/mpeg,audio/ogg,audio/wav,audio/*','MP3, WAV, OGG')}
-    ${inp('emoji','Cover Emoji',v('cover_emoji','🎵'),'🎵')}
+    <div class="fld"><label>Cover Image (اختیاری — جایگزین emoji می‌شه)</label><div class="upzone" id="mf-covzone"><i class="fa-solid fa-image"></i><div class="utxt">Click or drag & drop</div><div class="uhint">JPG, PNG, WebP</div><input type="file" id="mf-covinp" accept="image/*"/></div><div id="mf-covst">${item?.cover_img?`<div class="upprev"><img src="${cdnOf(item.cover_img)}" loading="lazy" onerror="this.style.display='none'"/><span style="font-size:.72rem;color:var(--t2)">Current cover</span></div>`:''}</div></div>
+    ${inp('emoji','Cover Emoji (اگه عکس نداری)',v('cover_emoji','🎵'),'🎵')}
     ${inp('bg','Cover Background',v('cover_bg','linear-gradient(135deg,#1a1520,#2a1f35)'),'CSS gradient')}`;
   if(section==='gallery') return `
     ${upBlock('image/jpeg,image/png,image/webp,image/gif,image/*','JPG, PNG, WebP')}
@@ -688,7 +691,7 @@ function g(id){ return ($('mf-'+id)||{}).value||''; }
 
 $('msave').onclick=async()=>{
   let item; const uid=Date.now().toString();
-  if(mType==='music')     item={ id:uid, title:g('title'), artist:g('artist'), genre:g('genre'), file:pendingFilePath.music||DATA.music[mIdx]?.file||'', cover_emoji:g('emoji')||'🎵', cover_bg:g('bg')||'linear-gradient(135deg,#1a1520,#2a1f35)' };
+  if(mType==='music')     item={ id:uid, title:g('title'), artist:g('artist'), genre:g('genre'), file:pendingFilePath.music||DATA.music[mIdx]?.file||'', cover_img:pendingFilePath.cover||DATA.music[mIdx]?.cover_img||'', cover_emoji:g('emoji')||'🎵', cover_bg:g('bg')||'linear-gradient(135deg,#1a1520,#2a1f35)' };
   if(mType==='gallery')   item={ id:uid, file:pendingFilePath.gallery||DATA.gallery[mIdx]?.file||'', caption:g('caption'), emoji:g('emoji')||'📷', bg:g('bg')||'linear-gradient(135deg,#161616,#222)' };
   if(mType==='posts')     item={ id:uid, title:g('title'), date:g('date'), excerpt:g('excerpt'), url:g('url')||'#' };
   if(mType==='interests') item={ icon:g('icon')||'✨', title:g('title'), desc:g('desc') };
