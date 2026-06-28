@@ -25,6 +25,7 @@
       "artist": "Kendrick Lamar",
       "genre": "Rap",
       "file": "music/07._Kendrick_Lamar_-_good_kid.mp3",
+      "cover_img": "images/cover_3_.jpg",
       "cover_emoji": "🎵",
       "cover_bg": "linear-gradient(135deg,#1a1520,#2a1f35)"
     }
