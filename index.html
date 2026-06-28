@@ -260,8 +260,14 @@ img{max-width:100%;display:block}
 @media(max-width:600px){
   .pbar{
     bottom:10px;
-    width:min(calc(100vw - 20px), 420px);
+    left:10px;
+    right:10px;
+    width:auto;
+    transform:translateY(calc(100% + 36px));
     border-radius:14px;
+  }
+  .pbar.visible{
+    transform:translateY(0);
   }
   .pb-row{padding:7px 8px 7px 8px}
   .pb-cov{width:36px;height:36px;font-size:.9rem;margin-right:9px}
