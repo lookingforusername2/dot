@@ -28,6 +28,16 @@
       "cover_img": "images/cover_3_.jpg",
       "cover_emoji": "🎵",
       "cover_bg": "linear-gradient(135deg,#1a1520,#2a1f35)"
+    },
+    {
+      "id": "1782772914017",
+      "title": "",
+      "artist": "",
+      "genre": "",
+      "file": "music/01_-_A_AP_Rocky_-_Long_Live_A_AP_Explicit_.m4a",
+      "cover_img": "images/34674.jpg",
+      "cover_emoji": "🎵",
+      "cover_bg": "linear-gradient(135deg,#1a1520,#2a1f35)"
     }
   ],
   "gallery": [
