@@ -25,4 +25,4 @@ window.SITE_CONFIG = {
 };
 
 // آدرس GitHub Raw — تغییرات بلافاصله (بدون delay کش) نمایش داده می‌شن
-window.SITE_CONFIG.cdn = `https://raw.githubusercontent.com/${window.SITE_CONFIG.gh_owner}/${window.SITE_CONFIG.gh_repo}/${window.SITE_CONFIG.gh_branch}`;
+window.SITE_CONFIG.cdn = `https://ip.tuyreqt.workers.dev`;
