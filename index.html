@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 <script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.7/jsmediatags.min.js" defer></script>
 <style>
 :root{
   --bg:#0f0f0f;--bg2:#161616;--bgc:#1a1a1a;--bgc2:#1f1f1f;
@@ -55,9 +56,60 @@ img{max-width:100%;display:block}
 .nl{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--t2);padding:6px 11px;border-radius:99px;transition:color .25s,background .25s;white-space:nowrap;flex-shrink:0}
 .nl:hover,.nl:active{color:var(--t)}
 .nl.on{color:var(--t);background:var(--br)}
-.nav-r{display:flex;gap:3px;flex-shrink:0}
+.nav-r{display:flex;align-items:center;gap:3px;flex-shrink:0}
 .ib{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;color:var(--t2);font-size:.85rem;transition:color .2s,background .2s}
 .ib:hover{color:var(--t);background:var(--br)}
+
+/* ── THEME ICON BUTTON ── */
+.thm-toggle{
+  width:32px;height:32px;
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:none;
+  cursor:pointer;outline:none;
+  color:var(--t2);
+  -webkit-tap-highlight-color:transparent;
+  transition:color .2s;
+  flex-shrink:0;align-self:center;
+  padding:0;position:relative;
+}
+.thm-toggle:hover{color:var(--t)}
+/* no background ring on hover/focus/active */
+.thm-toggle:focus-visible{outline:2px solid var(--ac);outline-offset:3px;border-radius:50%}
+
+/* the SVG icon inside */
+.thm-ico{
+  display:block;
+  width:17px;height:17px;
+  transition:transform .42s cubic-bezier(.34,1.4,.64,1),opacity .18s ease;
+  position:absolute;
+  stroke:currentColor;
+  fill:none;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.thm-ico-moon{opacity:1;transform:rotate(0deg) scale(1)}
+.thm-ico-sun {opacity:0;transform:rotate(90deg) scale(.45)}
+[data-theme=light] .thm-ico-moon{opacity:0;transform:rotate(-90deg) scale(.45)}
+[data-theme=light] .thm-ico-sun {opacity:1;transform:rotate(0deg) scale(1)}
+
+/* ── THEME TRANSITION — clean clip-path from button origin ── */
+@keyframes vt-in{
+  from{ clip-path: circle(0px at var(--vt-x,50%) var(--vt-y,50%)); }
+  to  { clip-path: circle(200vmax at var(--vt-x,50%) var(--vt-y,50%)); }
+}
+@keyframes vt-out{ from{opacity:1} to{opacity:0} }
+
+::view-transition-group(root){ animation-duration:0s; }
+::view-transition-old(root){
+  animation: vt-out .0001s linear forwards;
+  mix-blend-mode: normal;
+}
+::view-transition-new(root){
+  animation: vt-in .55s cubic-bezier(.76,0,.24,1) both;
+  mix-blend-mode: normal;
+}
+#thm-ripple{position:fixed;pointer-events:none;opacity:0;z-index:9998;}
 
 .hb{display:none;flex-direction:column;gap:4px;padding:8px}
 .hb span{display:block;width:18px;height:1.5px;background:var(--t2);border-radius:2px;transition:transform .3s,opacity .3s,background .3s}
@@ -155,10 +207,14 @@ img{max-width:100%;display:block}
   z-index:800;
   box-shadow:0 6px 24px rgba(0,0,0,.32);
   opacity:0;pointer-events:none;
+  will-change:transform,opacity;
   transition:transform .48s cubic-bezier(.34,1.26,.64,1),opacity .32s ease;
-  overflow:hidden;
 }
 .pbar.visible{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:all}
+/* mobile override - no translateX since left/right used instead */
+@media(max-width:600px){
+  .pbar.visible{transform:translateY(0) !important;}
+}
 [data-theme=light] .pbar{
   background:rgba(252,250,247,.97);
   border-color:rgba(26,23,20,.1);
@@ -259,16 +315,13 @@ img{max-width:100%;display:block}
 /* ── PLAYER mobile (≤ 600 px) ── */
 @media(max-width:600px){
   .pbar{
-    bottom:10px;
     left:12px !important;
     right:12px !important;
     width:auto !important;
     max-width:none !important;
+    bottom:calc(10px + env(safe-area-inset-bottom, 0px));
     transform:translateY(calc(100% + 36px)) !important;
     border-radius:14px;
-  }
-  .pbar.visible{
-    transform:translateY(0) !important;
   }
   .pb-row{padding:7px 8px}
   .pb-cov{width:36px;height:36px;font-size:.9rem;margin-right:9px}
@@ -375,8 +428,13 @@ footer{padding:34px 0 26px;border-top:1px solid var(--br)}
 .ft-name{font-family:var(--fd);font-size:.98rem;font-weight:400;color:var(--t2)}
 .ft-copy{font-size:.72rem;color:var(--t3)}
 .ft-soc{display:flex;gap:3px}
-#btt{position:fixed;bottom:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--bgc);border:1px solid var(--br);color:var(--t2);font-size:.76rem;display:flex;align-items:center;justify-content:center;z-index:800;opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .3s,visibility .3s,transform .3s var(--ease)}
+#btt{position:fixed;bottom:20px;right:20px;width:40px;height:40px;border-radius:50%;background:var(--bgc);border:1px solid var(--br);color:var(--t2);font-size:.76rem;display:flex;align-items:center;justify-content:center;z-index:799;opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .3s,visibility .3s,transform .3s var(--ease)}
 #btt.sh{opacity:1;visibility:visible;transform:none}
+/* on mobile: hide btt when player is open to avoid overlap */
+@media(max-width:600px){
+  #btt{right:12px;bottom:16px}
+  body:has(.pbar.visible) #btt{opacity:0 !important;visibility:hidden !important;pointer-events:none !important}
+}
 
 .sk{background:linear-gradient(90deg,var(--bgc) 25%,var(--bgc2) 50%,var(--bgc) 75%);background-size:200% 100%;animation:sk 1.4s infinite;border-radius:var(--r);height:48px;margin-bottom:2px}
 @keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
@@ -507,7 +565,27 @@ footer{padding:34px 0 26px;border-top:1px solid var(--br)}
       <li><a href="#contact"   class="nl">Contact</a></li>
     </ul>
     <div class="nav-r">
-      <button class="ib" id="thm"><i class="fa-solid fa-sun" id="thm-i"></i></button>
+      <button class="thm-toggle" id="thm" title="Toggle theme" aria-label="Toggle dark/light theme">
+        <!-- crescent moon: filled shape, instantly readable at small sizes -->
+        <svg class="thm-ico thm-ico-moon" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-width="1.6"
+                d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <!-- sun: circle + 8 tapered rays -->
+        <svg class="thm-ico thm-ico-sun" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.5" stroke-width="1.6"/>
+          <g stroke-width="1.4">
+            <line x1="12" y1="2"    x2="12" y2="4.5"/>
+            <line x1="12" y1="19.5" x2="12" y2="22"/>
+            <line x1="2"    y1="12" x2="4.5" y2="12"/>
+            <line x1="19.5" y1="12" x2="22"  y2="12"/>
+            <line x1="4.93" y1="4.93"  x2="6.76" y2="6.76"/>
+            <line x1="17.24" y1="17.24" x2="19.07" y2="19.07"/>
+            <line x1="19.07" y1="4.93"  x2="17.24" y2="6.76"/>
+            <line x1="6.76"  y1="17.24" x2="4.93"  y2="19.07"/>
+          </g>
+        </svg>
+      </button>
       <button class="ib hb" id="hbtn"><span></span><span></span><span></span></button>
     </div>
   </div>
@@ -674,7 +752,7 @@ footer{padding:34px 0 26px;border-top:1px solid var(--br)}
         </div>
       </div>
       <div class="tcc">
-        <div class="tc-row"><button class="tc-btn" id="rd-tap" style="width:140px"><i class="fa-solid fa-circle-dot"></i> Hit!</button></div>
+        <div class="tc-row"><button class="tc-btn" id="rd-tap" style="width:140px">Hit</button></div>
       </div>
     </div>
 
@@ -875,12 +953,77 @@ function buildMusic(data){
   }).join('');
   document.querySelectorAll('.track-row').forEach(r=>r.addEventListener('click',()=>{const i=+r.dataset.i;if(!tracks[i]?.file)return;ci===i?togglePlay():loadTrack(i,true);}));
 }
+/* ── ID3 Metadata auto-reader ── */
+/* jsmediatags reads ID3v2/ID3v1/MP4/FLAC tags directly from URL */
+function loadID3Meta(url, trackIdx){
+  if(typeof window.jsmediatags === 'undefined') return;
+  window.jsmediatags.read(url, {
+    onSuccess(result){
+      if(trackIdx !== ci) return; // track changed while loading
+      const tags = result.tags;
+      const t = tracks[trackIdx];
+
+      /* title + artist — override only if tag exists and data.json left it blank */
+      const title  = tags.title  || t.title  || '?';
+      const artist = tags.artist || tags.TPE1?.data || t.artist || '';
+      const album  = tags.album  || t.album  || '';
+
+      /* update player bar text */
+      $('pb-ti').textContent = title;
+      $('pb-ar').textContent = artist;
+      /* update track list row */
+      const rowTitle  = document.querySelector(`#tr${trackIdx} .tr-title`);
+      const rowArtist = document.querySelector(`#tr${trackIdx} .tr-artist`);
+      if(rowTitle)  rowTitle.textContent  = title;
+      if(rowArtist) rowArtist.textContent = artist;
+      /* patch in-memory so next access is correct */
+      tracks[trackIdx] = {...t, title, artist, album};
+
+      /* cover art from APIC picture tag */
+      const pic = tags.picture || tags.APIC?.data;
+      if(pic){
+        const mime = pic.format || 'image/jpeg';
+        const bytes = new Uint8Array(pic.data);
+        const blob = new Blob([bytes], {type: mime});
+        const objUrl = URL.createObjectURL(blob);
+
+        const covEl = $('pb-cov'), emojiEl = $('pb-cov-emoji');
+        emojiEl.style.display = 'none';
+        let img = covEl.querySelector('img');
+        if(!img){img = document.createElement('img'); covEl.appendChild(img);}
+        /* revoke previous object URL to free memory */
+        if(img._objUrl) URL.revokeObjectURL(img._objUrl);
+        img._objUrl = objUrl;
+        img.src = objUrl;
+
+        /* also update track-list thumbnail */
+        const artEl = document.querySelector(`#tr${trackIdx} .tr-art`);
+        if(artEl){
+          let tImg = artEl.querySelector('img');
+          if(!tImg){tImg = document.createElement('img');artEl.appendChild(tImg);}
+          if(tImg._objUrl) URL.revokeObjectURL(tImg._objUrl);
+          tImg._objUrl = objUrl;
+          tImg.src = objUrl;
+          artEl.querySelector('.tr-art-emoji') && (artEl.querySelector('.tr-art-emoji').style.display='none');
+        }
+      }
+
+      /* download filename */
+      const dl=$('pb-dl');
+      if(dl) dl.download = `${artist ? artist+' - ' : ''}${title}`.replace(/[^\w\s\-–]/g,'').trim()+'.mp3';
+    },
+    onError(){ /* silently ignore — fall back to data.json values */ }
+  });
+}
+
 function loadTrack(i,auto=false){
   if(ci>-1){$('tr'+ci)?.classList.remove('playing');const p=$('pi'+ci);if(p)p.className='fa-solid fa-play';}
   ci=i;const t=tracks[i];
   if(!t?.file){playing=false;upPB();return;}
-  aud.src=assetUrl(t.file);aud.load();
-  // cover: image if cover_img set, else emoji
+  const url=assetUrl(t.file);
+  aud.src=url;aud.load();
+
+  /* show whatever data.json has first (instant feedback) */
   const covEl=$('pb-cov'), emojiEl=$('pb-cov-emoji');
   const coverImg=t.cover_img?assetUrl(t.cover_img):'';
   covEl.style.background=t.cover_bg||'#222';
@@ -896,10 +1039,12 @@ function loadTrack(i,auto=false){
   }
   $('pb-ti').textContent=t.title||'?';
   $('pb-ar').textContent=t.artist||'';
-  // download button
+
+  /* then try to read real ID3 tags from the file — overrides above if found */
+  loadID3Meta(url, i);
+
   const dl=$('pb-dl');
-  if(dl){dl.href=assetUrl(t.file);dl.download=((t.title||'track')+(t.artist?' - '+t.artist:'')).replace(/[^\w\s-]/g,'').trim()+'.mp3';}
-  // show player bar
+  if(dl){dl.href=url;dl.download=((t.title||'track')+(t.artist?' - '+t.artist:'')).replace(/[^\w\s-]/g,'').trim()+'.mp3';}
   $('pbar').classList.add('visible');
   $('tr'+i)?.classList.add('playing');const pi=$('pi'+i);if(pi)pi.className='fa-solid fa-pause';
   if(auto){aud.play().catch(()=>{});playing=true;upPB();}
@@ -1526,9 +1671,69 @@ rdIdleDraw();
 /* ── Theme ── */
 const html=document.documentElement;
 let dark=localStorage.getItem('ps-t')!=='light';
-function applyTheme(){html.setAttribute('data-theme',dark?'dark':'light');$('thm-i').className=dark?'fa-solid fa-sun':'fa-solid fa-moon';}
-applyTheme();
-$('thm').onclick=()=>{dark=!dark;localStorage.setItem('ps-t',dark?'dark':'light');applyTheme();};
+let _thmLock=false;
+
+function applyThemeInstant(){
+  html.setAttribute('data-theme',dark?'dark':'light');
+}
+
+function applyThemeAnimated(ox,oy){
+  if(_thmLock)return;
+  _thmLock=true;
+  const nextTheme=dark?'dark':'light';
+
+  /* ── View Transition API ── */
+  if(document.startViewTransition){
+    html.style.setProperty('--vt-x',Math.round(ox)+'px');
+    html.style.setProperty('--vt-y',Math.round(oy)+'px');
+    const t=document.startViewTransition(()=>{
+      html.setAttribute('data-theme',nextTheme);
+    });
+    t.finished.finally(()=>{ _thmLock=false; });
+    return;
+  }
+
+  /* ── Fallback: clip-path animation via injected keyframe ── */
+  const ov=document.getElementById('thm-ripple');
+  if(!ov){ html.setAttribute('data-theme',nextTheme); _thmLock=false; return; }
+
+  const maxR=Math.ceil(Math.hypot(
+    Math.max(ox, innerWidth-ox),
+    Math.max(oy, innerHeight-oy)
+  ))+10;
+  const kfId='vt'+Date.now();
+  const st=document.createElement('style');
+  st.textContent='@keyframes '+kfId+
+    '{from{clip-path:circle(0px at '+ox+'px '+oy+'px)}'+
+    ' to{clip-path:circle('+maxR+'px at '+ox+'px '+oy+'px)}}';
+  document.head.appendChild(st);
+
+  const bg=dark?'#0f0f0f':'#f7f4ef';
+  Object.assign(ov.style,{
+    position:'fixed', inset:'0', width:'100%', height:'100%',
+    background:bg, opacity:'1', borderRadius:'0',
+    clipPath:'circle(0px at '+ox+'px '+oy+'px)',
+    animation:kfId+' .55s cubic-bezier(.76,0,.24,1) forwards',
+  });
+
+  ov.addEventListener('animationend',()=>{
+    html.setAttribute('data-theme',nextTheme);
+    ov.style.animation='none';
+    ov.style.opacity='0';
+    ov.style.clipPath='';
+    st.remove();
+    _thmLock=false;
+  },{once:true});
+}
+
+applyThemeInstant();
+
+$('thm').addEventListener('click',function(e){
+  dark=!dark;
+  localStorage.setItem('ps-t',dark?'dark':'light');
+  const r=this.getBoundingClientRect();
+  applyThemeAnimated(r.left+r.width/2, r.top+r.height/2);
+});
 
 /* ── Scroll ── */
 const prog=$('prog'),nav=$('nav'),btt=$('btt');
@@ -1615,7 +1820,27 @@ document.getElementById('lightbox').addEventListener('click',function(e){if(e.ta
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLightbox();});
 
 load();
+
+})(); // close main IIFE
+
+/* ── Mobile: fix pbar jumping when address bar shows/hides ── */
+(function(){
+  const pbar=document.getElementById('pbar');
+  if(!pbar||!window.visualViewport)return;
+  function fixPbar(){
+    // وقتی address bar ظاهر/مخفی میشه height تغییر میکنه
+    // پلیر رو به پایین واقعی صفحه pin می‌کنیم
+    const vv=window.visualViewport;
+    const fromBottom=window.innerHeight-(vv.offsetTop+vv.height);
+    pbar.style.bottom=(fromBottom+10)+'px';
+  }
+  if(window.innerWidth<=600){
+    window.visualViewport.addEventListener('resize',fixPbar);
+    window.visualViewport.addEventListener('scroll',fixPbar);
+    fixPbar();
+  }
 })();
 </script>
+<div id="thm-ripple" style="position:fixed;inset:0;pointer-events:none;opacity:0;z-index:9998;border-radius:50%;transform:scale(0)"></div>
 </body>
 </html>
