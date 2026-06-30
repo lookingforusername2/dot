@@ -11,7 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
 <script src="config.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.7/jsmediatags.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.7/jsmediatags.min.js"></script>
 <style>
 :root{
   --bg:#0f0f0f;--bg2:#161616;--bgc:#1a1a1a;--bgc2:#1f1f1f;
@@ -953,67 +953,111 @@ function buildMusic(data){
   }).join('');
   document.querySelectorAll('.track-row').forEach(r=>r.addEventListener('click',()=>{const i=+r.dataset.i;if(!tracks[i]?.file)return;ci===i?togglePlay():loadTrack(i,true);}));
 }
-/* ── ID3 Metadata auto-reader ── */
-/* jsmediatags reads ID3v2/ID3v1/MP4/FLAC tags directly from URL */
-function loadID3Meta(url, trackIdx){
-  if(typeof window.jsmediatags === 'undefined') return;
-  window.jsmediatags.read(url, {
-    onSuccess(result){
-      if(trackIdx !== ci) return; // track changed while loading
-      const tags = result.tags;
-      const t = tracks[trackIdx];
-
-      /* title + artist — override only if tag exists and data.json left it blank */
-      const title  = tags.title  || t.title  || '?';
-      const artist = tags.artist || tags.TPE1?.data || t.artist || '';
-      const album  = tags.album  || t.album  || '';
-
-      /* update player bar text */
-      $('pb-ti').textContent = title;
-      $('pb-ar').textContent = artist;
-      /* update track list row */
-      const rowTitle  = document.querySelector(`#tr${trackIdx} .tr-title`);
-      const rowArtist = document.querySelector(`#tr${trackIdx} .tr-artist`);
-      if(rowTitle)  rowTitle.textContent  = title;
-      if(rowArtist) rowArtist.textContent = artist;
-      /* patch in-memory so next access is correct */
-      tracks[trackIdx] = {...t, title, artist, album};
-
-      /* cover art from APIC picture tag */
-      const pic = tags.picture || tags.APIC?.data;
-      if(pic){
-        const mime = pic.format || 'image/jpeg';
-        const bytes = new Uint8Array(pic.data);
-        const blob = new Blob([bytes], {type: mime});
-        const objUrl = URL.createObjectURL(blob);
-
-        const covEl = $('pb-cov'), emojiEl = $('pb-cov-emoji');
-        emojiEl.style.display = 'none';
-        let img = covEl.querySelector('img');
-        if(!img){img = document.createElement('img'); covEl.appendChild(img);}
-        /* revoke previous object URL to free memory */
-        if(img._objUrl) URL.revokeObjectURL(img._objUrl);
-        img._objUrl = objUrl;
-        img.src = objUrl;
-
-        /* also update track-list thumbnail */
-        const artEl = document.querySelector(`#tr${trackIdx} .tr-art`);
-        if(artEl){
-          let tImg = artEl.querySelector('img');
-          if(!tImg){tImg = document.createElement('img');artEl.appendChild(tImg);}
-          if(tImg._objUrl) URL.revokeObjectURL(tImg._objUrl);
-          tImg._objUrl = objUrl;
-          tImg.src = objUrl;
-          artEl.querySelector('.tr-art-emoji') && (artEl.querySelector('.tr-art-emoji').style.display='none');
-        }
-      }
-
-      /* download filename */
-      const dl=$('pb-dl');
-      if(dl) dl.download = `${artist ? artist+' - ' : ''}${title}`.replace(/[^\w\s\-–]/g,'').trim()+'.mp3';
-    },
-    onError(){ /* silently ignore — fall back to data.json values */ }
+/* ── ID3 Metadata auto-reader ──
+   jsmediatags reads ID3v2/ID3v1/MP4(m4a)/FLAC tags.
+   It works two ways:
+     1) Reading straight from the URL via XHR + Range requests — fast,
+        but requires the server/proxy to forward Range + CORS headers.
+     2) Reading from a Blob/File object — slower (downloads the whole
+        file first) but has zero CORS/Range requirements once we
+        already have the bytes via fetch().
+   We try (1) first; if it fails for ANY reason we silently retry
+   with (2) so metadata still loads even through a CORS-strict proxy. */
+function readTagsFromSource(source, trackIdx, onTags){
+  window.jsmediatags.read(source, {
+    onSuccess(result){ onTags(result.tags); },
+    onError(err){
+      console.warn('[ID3] direct read failed for track', trackIdx, err && err.type, err && err.info);
+      onTags(null, err);
+    }
   });
+}
+
+async function loadID3Meta(url, trackIdx){
+  if(typeof window.jsmediatags === 'undefined'){
+    console.warn('[ID3] jsmediatags failed to load — check that the CDN script tag is reachable and not blocked');
+    return;
+  }
+
+  const apply = (tags)=>{
+    if(!tags) return;
+    if(trackIdx !== ci) return; // user switched tracks while we were loading
+    applyID3Tags(tags, trackIdx);
+  };
+
+  /* attempt 1 — direct URL (fast path, needs Range+CORS on the proxy) */
+  readTagsFromSource(url, trackIdx, async (tags, err)=>{
+    if(tags){ apply(tags); return; }
+
+    /* attempt 2 — fetch the whole file ourselves and hand jsmediatags
+       a Blob instead. This sidesteps Range-header requirements because
+       browsers don't need a preflight/Range dance for a plain GET that
+       we already performed; jsmediatags just reads the local Blob. */
+    try{
+      const res = await fetch(url, {mode:'cors'});
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      const blob = await res.blob();
+      if(trackIdx !== ci) return; // track changed mid-fetch
+      readTagsFromSource(blob, trackIdx, (tags2, err2)=>{
+        if(tags2){ apply(tags2); }
+        else console.warn('[ID3] blob-fallback read also failed for track', trackIdx, err2 && err2.type, err2 && err2.info);
+      });
+    }catch(fetchErr){
+      console.warn('[ID3] could not fetch file for fallback read (likely CORS) — track', trackIdx, fetchErr.message);
+    }
+  });
+}
+
+function applyID3Tags(tags, trackIdx){
+  const t = tracks[trackIdx];
+
+  /* title + artist — ID3 wins only when data.json left it blank */
+  const title  = (t.title  && t.title.trim())  ? t.title  : (tags.title  || tags.TIT2?.data || '?');
+  const artist = (t.artist && t.artist.trim()) ? t.artist : (tags.artist || tags.TPE1?.data || '');
+  const album  = t.album || tags.album || tags.TALB?.data || '';
+
+  $('pb-ti').textContent = title;
+  $('pb-ar').textContent = artist;
+  const rowTitle  = document.querySelector(`#tr${trackIdx} .tr-title`);
+  const rowArtist = document.querySelector(`#tr${trackIdx} .tr-artist`);
+  if(rowTitle)  rowTitle.textContent  = title;
+  if(rowArtist) rowArtist.textContent = artist;
+  tracks[trackIdx] = {...t, title, artist, album};
+
+  /* cover art — only apply if data.json doesn't already have one */
+  const pic = tags.picture || tags.APIC?.data;
+  if(pic && pic.data && !t.cover_img){
+    try{
+      const mime  = pic.format || 'image/jpeg';
+      const bytes = new Uint8Array(pic.data);
+      const blob  = new Blob([bytes.buffer], {type: mime});
+      const objUrl = URL.createObjectURL(blob);
+
+      const covEl = $('pb-cov'), emojiEl = $('pb-cov-emoji');
+      emojiEl.style.display = 'none';
+      let img = covEl.querySelector('img');
+      if(!img){ img = document.createElement('img'); covEl.appendChild(img); }
+      if(img._objUrl) URL.revokeObjectURL(img._objUrl);
+      img._objUrl = objUrl;
+      img.src = objUrl;
+
+      const artEl = document.querySelector(`#tr${trackIdx} .tr-art`);
+      if(artEl){
+        let tImg = artEl.querySelector('img');
+        if(!tImg){ tImg = document.createElement('img'); artEl.appendChild(tImg); }
+        if(tImg._objUrl) URL.revokeObjectURL(tImg._objUrl);
+        tImg._objUrl = objUrl;
+        tImg.src = objUrl;
+        const em = artEl.querySelector('.tr-art-emoji');
+        if(em) em.style.display = 'none';
+      }
+    }catch(picErr){
+      console.warn('[ID3] failed to decode embedded picture for track', trackIdx, picErr.message);
+    }
+  }
+
+  const dl = $('pb-dl');
+  if(dl) dl.download = `${artist ? artist+' - ' : ''}${title}`.replace(/[^\w\s\-–]/g,'').trim()+'.mp3';
 }
 
 function loadTrack(i,auto=false){

@@ -588,7 +588,7 @@ function cdnOf(path){
 function rowHTML(section,item,i){
   let thumb='',name='',sub='',badge='';
   if(section==='music'){
-    thumb=`<div class="ithumb" style="background:${esc(item.cover_bg||'#222')}">${esc(item.cover_emoji||'🎵')}</div>`;
+    thumb=`<div class="ithumb" style="background:${esc(item.cover_bg||'#222')}">${item.cover_img?`<img src="${cdnOf(item.cover_img)}" loading="lazy" onerror="this.remove()"/>`:esc(item.cover_emoji||'🎵')}</div>`;
     name=item.title||'—'; sub=`${item.artist||''} · ${item.file?'فایل آپلود شده':'بدون فایل'}`;
     badge=`<span class="ibadge">${esc(item.genre||'')}</span>`;
   }else if(section==='gallery'){
