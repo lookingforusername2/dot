@@ -173,22 +173,44 @@ img{max-width:100%;display:block}
 
 /* ── MUSIC PLAYER ── */
 .music-intro{font-size:.935rem;color:var(--t2);line-height:1.8;max-width:500px;margin-bottom:36px}
-.track-list{display:flex;flex-direction:column;gap:2px;margin-bottom:24px}
-.track-row{display:flex;align-items:center;gap:16px;padding:12px 14px;background:var(--bgc);border:1px solid var(--br2);border-radius:var(--r);cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s}
+/* fixed-height scroll container: once tracks exceed ~6 rows the list
+   scrolls internally instead of growing the page forever. A soft
+   fade at the bottom hints there's more to scroll without a hard cut. */
+.track-list-wrap{position:relative;margin-bottom:24px}
+.track-list{
+  display:flex;flex-direction:column;gap:2px;
+  max-height:392px;overflow-y:auto;overflow-x:hidden;
+  padding-right:4px;margin-right:-4px;
+  scrollbar-width:thin;scrollbar-color:var(--t3) transparent;
+}
+.track-list::-webkit-scrollbar{width:5px}
+.track-list::-webkit-scrollbar-track{background:transparent}
+.track-list::-webkit-scrollbar-thumb{background:var(--t3);border-radius:99px}
+.track-list::-webkit-scrollbar-thumb:hover{background:var(--t2)}
+/* bottom fade — only meaningful once content actually overflows, but
+   harmless to always render since it sits behind the last row anyway */
+.track-list-wrap::after{
+  content:'';position:absolute;left:0;right:4px;bottom:0;height:28px;
+  background:linear-gradient(to bottom, transparent, var(--bg) 92%);
+  pointer-events:none;border-radius:0 0 var(--r) var(--r);
+  opacity:0;transition:opacity .25s;
+}
+.track-list-wrap.has-overflow::after{opacity:1}
+.track-row{display:flex;align-items:center;gap:13px;padding:9px 12px;background:var(--bgc);border:1px solid var(--br2);border-radius:var(--r);cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s}
 .track-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--acbg),transparent);transition:width .4s var(--ease)}
 .track-row:hover::before,.track-row.playing::before{width:100%}
 .track-row:hover,.track-row:active{border-color:var(--br)}
 .track-row.playing{border-color:rgba(184,169,212,.3)}
-.tr-n{font-family:var(--fd);font-size:.95rem;color:var(--t3);width:18px;text-align:center;flex-shrink:0;position:relative;z-index:1}
-.tr-art{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;position:relative;z-index:1;overflow:hidden}
+.tr-n{font-family:var(--fd);font-size:.88rem;color:var(--t3);width:16px;text-align:center;flex-shrink:0;position:relative;z-index:1}
+.tr-art{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;position:relative;z-index:1;overflow:hidden}
 .tr-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;pointer-events:none}
 .tr-info{flex:1;min-width:0;position:relative;z-index:1}
-.tr-title{font-size:.85rem;font-weight:500;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tr-artist{font-size:.73rem;color:var(--t3)}
+.tr-title{font-size:.82rem;font-weight:500;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr-artist{font-size:.71rem;color:var(--t3)}
 .tr-right{display:flex;align-items:center;gap:8px;flex-shrink:0;position:relative;z-index:1;margin-left:-8px}
-.tr-genre{font-size:.62rem;letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:99px;background:var(--acbg);color:var(--ac);flex-shrink:0;margin-left:10px}
-.tr-dur{font-size:.72rem;color:var(--t3);width:32px;text-align:right;flex-shrink:0}
-.tr-pi{font-size:.72rem;color:var(--ac);width:16px;text-align:center;flex-shrink:0;opacity:0;transition:opacity .2s}
+.tr-genre{font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:99px;background:var(--acbg);color:var(--ac);flex-shrink:0;margin-left:10px}
+.tr-dur{font-size:.7rem;color:var(--t3);width:30px;text-align:right;flex-shrink:0}
+.tr-pi{font-size:.7rem;color:var(--ac);width:16px;text-align:center;flex-shrink:0;opacity:0;transition:opacity .2s}
 .track-row:hover .tr-pi,.track-row.playing .tr-pi{opacity:1}
 
 /* ── PLAYER BAR ── */
@@ -646,7 +668,9 @@ footer{padding:34px 0 26px;border-top:1px solid var(--br)}
     <div class="sec-lbl rv">Music I love</div>
     <h2 class="sec-h rv d1">What I've been<br><em>listening to.</em></h2>
     <p class="music-intro rv d2">Click any track to play.</p>
-    <div class="track-list rv d2" id="tlist"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+    <div class="track-list-wrap">
+      <div class="track-list rv d2" id="tlist"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+    </div>
     <div class="pbar" id="pbar">
       <div class="pb-row">
         <!-- cover art -->
@@ -843,12 +867,17 @@ const CDN = CONFIGURED_CDN.includes('/your-github-username/') ? '' : CONFIGURED_
 function $(id){return document.getElementById(id);}
 function esc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
-/* ── Load data from GitHub Raw ── */
-// Override CDN to use GitHub Raw (bypasses jsDelivr cache delay)
+/* ── Asset source priority ──
+   1) Worker (CDN) — proxies the GitHub Contents API, which has NO
+      edge-cache delay, so a Save in the admin panel shows up
+      immediately. This is now the primary source.
+   2) GitHub Raw — kept only as a fallback for when the Worker is
+      unreachable. Raw has its own CDN with a multi-minute publish
+      delay, which is the whole reason we moved off it. */
 const GHRAW = HAS_GITHUB_CONFIG
   ? `https://raw.githubusercontent.com/${CFG.gh_owner}/${CFG.gh_repo}/${CFG.gh_branch||'main'}`
   : '';
-const RAWBASE = GHRAW || CDN;
+const RAWBASE = CDN || GHRAW;
 function assetUrl(path){
   if(!path) return '';
   const clean=String(path).replace(/^\/+/,'');
@@ -859,10 +888,11 @@ async function load(){
   const stamp='?_='+Date.now();
   const sources=[];
   if(RAWBASE) sources.push(RAWBASE+'/data.json'+stamp);
+  if(GHRAW && GHRAW!==RAWBASE) sources.push(GHRAW+'/data.json'+stamp);
   sources.push('data.json'+stamp);
   for(const src of sources){
     try{
-      const r=await fetch(src);
+      const r=await fetch(src,{cache:'no-store'});
       if(!r.ok) throw new Error();
       render(await r.json());
       return;
@@ -946,13 +976,51 @@ const aud=$('aud');
 function buildMusic(data){
   tracks=data;
   const list=$('tlist');
-  if(!tracks.length){list.innerHTML='<div style="text-align:center;color:var(--t3);padding:24px;font-size:.875rem">No tracks yet</div>';return;}
+  if(!tracks.length){list.innerHTML='<div style="text-align:center;color:var(--t3);padding:24px;font-size:.875rem">No tracks yet</div>';syncTrackListOverflow();return;}
   list.innerHTML=tracks.map((t,i)=>{
     const coverImg=t.cover_img?`<img src="${assetUrl(t.cover_img)}" alt="" loading="lazy" onerror="this.remove()"/>`:'';
     return `<div class="track-row rv${t.file?'':' no-file'}" data-i="${i}" id="tr${i}"><div class="tr-art" style="background:${esc(t.cover_bg||'#222')}">${coverImg}${esc(t.cover_emoji||'🎵')}</div><div class="tr-info"><div class="tr-title">${esc(t.title||'?')}</div><div class="tr-artist">${esc(t.artist||'')}</div></div><div class="tr-right"><div class="tr-pi"><i class="fa-solid fa-play" id="pi${i}"></i></div><span class="tr-genre">${esc(t.genre||'')}</span><div class="tr-dur" id="td${i}">—</div></div></div>`;
   }).join('');
   document.querySelectorAll('.track-row').forEach(r=>r.addEventListener('click',()=>{const i=+r.dataset.i;if(!tracks[i]?.file)return;ci===i?togglePlay():loadTrack(i,true);}));
+  syncTrackListOverflow();
 }
+/* toggles the bottom fade gradient on/off depending on whether the
+   list is actually tall enough to need internal scrolling — avoids
+   showing a "there's more below" hint when there isn't */
+function syncTrackListOverflow(){
+  const list=$('tlist'), wrap=list&&list.closest('.track-list-wrap');
+  if(!list||!wrap) return;
+  const overflowing = list.scrollHeight > list.clientHeight + 1;
+  wrap.classList.toggle('has-overflow', overflowing);
+}
+window.addEventListener('resize', ()=>{ if(tracks.length) syncTrackListOverflow(); });
+/* ── Debug overlay ──
+   Invisible unless the page URL has ?debug — then it shows a small
+   panel logging exactly what happens at each ID3-loading step, in
+   plain language, so a failure (CORS block, 404, malformed tag,
+   wrong proxy URL, etc.) is visible without opening devtools. */
+const DEBUG_ON = new URLSearchParams(location.search).has('debug');
+let dbgPanel, dbgLog;
+function dbgInit(){
+  if(!DEBUG_ON) return;
+  dbgPanel=document.createElement('div');
+  dbgPanel.style.cssText='position:fixed;left:8px;bottom:8px;width:min(420px,calc(100vw - 16px));max-height:46vh;overflow-y:auto;background:rgba(10,10,10,.97);border:1px solid rgba(184,169,212,.3);border-radius:10px;padding:10px 12px;font:11px/1.5 monospace;color:#cfc9be;z-index:99999;box-shadow:0 8px 30px rgba(0,0,0,.5);backdrop-filter:blur(8px)';
+  dbgPanel.innerHTML='<div style="font-weight:700;color:#b8a9d4;margin-bottom:6px;display:flex;justify-content:space-between"><span>ID3 Debug</span><span style="cursor:pointer;opacity:.6" onclick="this.closest(\'div\').parentElement.remove()">✕</span></div><div id="dbg-log"></div>';
+  document.body.appendChild(dbgPanel);
+  dbgLog=dbgPanel.querySelector('#dbg-log');
+}
+function dbg(label,status,detail){
+  if(!DEBUG_ON) return;
+  if(!dbgPanel) dbgInit();
+  const color = status==='ok' ? '#8aad96' : status==='fail' ? '#c87878' : '#8a8278';
+  const icon  = status==='ok' ? '✓' : status==='fail' ? '✕' : '…';
+  const line=document.createElement('div');
+  line.style.cssText='margin-bottom:3px;word-break:break-word';
+  line.innerHTML=`<span style="color:${color}">${icon}</span> ${label}${detail?` <span style="color:#6a645c">— ${esc(String(detail))}</span>`:''}`;
+  dbgLog.appendChild(line);
+  dbgLog.scrollTop=dbgLog.scrollHeight;
+}
+
 /* ── ID3 Metadata auto-reader ──
    jsmediatags reads ID3v2/ID3v1/MP4(m4a)/FLAC tags.
    It works two ways:
@@ -974,10 +1042,13 @@ function readTagsFromSource(source, trackIdx, onTags){
 }
 
 async function loadID3Meta(url, trackIdx){
+  dbg('Track clicked', 'info', url);
   if(typeof window.jsmediatags === 'undefined'){
     console.warn('[ID3] jsmediatags failed to load — check that the CDN script tag is reachable and not blocked');
+    dbg('jsmediatags library', 'fail', 'library never loaded — CDN script tag blocked or unreachable');
     return;
   }
+  dbg('jsmediatags library', 'ok', 'loaded');
 
   const apply = (tags)=>{
     if(!tags) return;
@@ -986,23 +1057,37 @@ async function loadID3Meta(url, trackIdx){
   };
 
   /* attempt 1 — direct URL (fast path, needs Range+CORS on the proxy) */
+  dbg('Attempt 1: direct URL read', 'info', 'requires proxy to support CORS + Range headers');
   readTagsFromSource(url, trackIdx, async (tags, err)=>{
-    if(tags){ apply(tags); return; }
+    if(tags){
+      dbg('Attempt 1: direct URL read', 'ok', 'tags found, title='+(tags.title||'—'));
+      apply(tags);
+      return;
+    }
+    dbg('Attempt 1: direct URL read', 'fail', (err&&err.type)+(err&&err.info?' — '+err.info:''));
 
     /* attempt 2 — fetch the whole file ourselves and hand jsmediatags
        a Blob instead. This sidesteps Range-header requirements because
        browsers don't need a preflight/Range dance for a plain GET that
        we already performed; jsmediatags just reads the local Blob. */
+    dbg('Attempt 2: fetch + blob fallback', 'info', 'downloading whole file via fetch()');
     try{
       const res = await fetch(url, {mode:'cors'});
       if(!res.ok) throw new Error('HTTP '+res.status);
+      dbg('Attempt 2: fetch + blob fallback', 'ok', 'file downloaded, '+res.headers.get('content-length')+' bytes');
       const blob = await res.blob();
       if(trackIdx !== ci) return; // track changed mid-fetch
       readTagsFromSource(blob, trackIdx, (tags2, err2)=>{
-        if(tags2){ apply(tags2); }
-        else console.warn('[ID3] blob-fallback read also failed for track', trackIdx, err2 && err2.type, err2 && err2.info);
+        if(tags2){
+          dbg('Attempt 2: tag parse from blob', 'ok', 'title='+(tags2.title||'—'));
+          apply(tags2);
+        }else{
+          dbg('Attempt 2: tag parse from blob', 'fail', (err2&&err2.type)+(err2&&err2.info?' — '+err2.info:''));
+          console.warn('[ID3] blob-fallback read also failed for track', trackIdx, err2 && err2.type, err2 && err2.info);
+        }
       });
     }catch(fetchErr){
+      dbg('Attempt 2: fetch + blob fallback', 'fail', fetchErr.message+' (often means CORS is blocking the proxy entirely)');
       console.warn('[ID3] could not fetch file for fallback read (likely CORS) — track', trackIdx, fetchErr.message);
     }
   });
@@ -1026,6 +1111,7 @@ function applyID3Tags(tags, trackIdx){
 
   /* cover art — only apply if data.json doesn't already have one */
   const pic = tags.picture || tags.APIC?.data;
+  dbg('Embedded cover (APIC)', pic ? 'ok' : 'info', pic ? 'found, format='+(pic.format||'?') : 'no embedded picture in this file');
   if(pic && pic.data && !t.cover_img){
     try{
       const mime  = pic.format || 'image/jpeg';
@@ -1051,13 +1137,16 @@ function applyID3Tags(tags, trackIdx){
         const em = artEl.querySelector('.tr-art-emoji');
         if(em) em.style.display = 'none';
       }
+      dbg('Cover decoded and applied', 'ok', mime);
     }catch(picErr){
+      dbg('Cover decode', 'fail', picErr.message);
       console.warn('[ID3] failed to decode embedded picture for track', trackIdx, picErr.message);
     }
   }
 
   const dl = $('pb-dl');
   if(dl) dl.download = `${artist ? artist+' - ' : ''}${title}`.replace(/[^\w\s\-–]/g,'').trim()+'.mp3';
+  dbg('Final applied', 'ok', `title="${title}" artist="${artist}"`);
 }
 
 function loadTrack(i,auto=false){
