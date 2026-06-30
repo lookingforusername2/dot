@@ -6,6 +6,39 @@
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <title id="pt">Personal Site</title>
+<script>
+/* ── On-page error catcher ──
+   Installed before anything else loads so it catches every JS error,
+   even ones in config.js or third-party scripts. Shows a small,
+   readable banner at the top of the page — no DevTools needed.
+   Visible to everyone (not gated behind ?debug) because if something
+   is broken, the person looking at the site is exactly who needs to
+   see why, even without dev knowledge. Tap the banner to dismiss it. */
+(function(){
+  var seen = [];
+  function showBanner(msg){
+    if(seen.indexOf(msg)!==-1) return; // don't spam the same error twice
+    seen.push(msg);
+    try{
+      var bar=document.createElement('div');
+      bar.setAttribute('data-err-banner','1');
+      bar.style.cssText='position:fixed;top:0;left:0;right:0;z-index:999999;background:#3a1414;color:#f0d4d4;font:12px/1.5 -apple-system,sans-serif;padding:10px 14px;border-bottom:1px solid #6a2828;direction:rtl;text-align:right;box-shadow:0 2px 12px rgba(0,0,0,.4)';
+      bar.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><strong style="color:#e89a9a">یه خطا توی سایت پیش اومد:</strong><div style="margin-top:4px;font-family:monospace;font-size:11px;word-break:break-word;color:#d8b8b8"></div></div><span style="cursor:pointer;opacity:.7;flex-shrink:0;padding:2px 6px" title="بستن">✕</span></div>';
+      bar.querySelector('div div').textContent=msg;
+      bar.querySelector('span').onclick=function(){bar.remove();};
+      document.body ? document.body.prepend(bar) : document.addEventListener('DOMContentLoaded',function(){document.body.prepend(bar);});
+    }catch(e){ /* if even the banner fails, give up silently */ }
+  }
+  window.addEventListener('error', function(e){
+    var loc = e.filename ? (e.filename.split('/').pop()+':'+e.lineno) : '';
+    showBanner((e.message||'Unknown error')+(loc?' ('+loc+')':''));
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var reason = e.reason && (e.reason.message||e.reason) || 'Unknown promise rejection';
+    showBanner('Promise error: '+reason);
+  });
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet"/>
