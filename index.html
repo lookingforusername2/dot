@@ -209,7 +209,7 @@ img{max-width:100%;display:block}
 /* fixed-height scroll container: once tracks exceed ~6 rows the list
    scrolls internally instead of growing the page forever. A soft
    fade at the bottom hints there's more to scroll without a hard cut. */
-.track-list-wrap{position:relative;margin-bottom:24px}
+.track-list-wrap{position:relative;margin-bottom:24px;overflow:hidden;border-radius:var(--r)}
 .track-list{
   display:flex;flex-direction:column;gap:2px;
   max-height:392px;overflow-y:auto;overflow-x:hidden;
@@ -220,15 +220,19 @@ img{max-width:100%;display:block}
 .track-list::-webkit-scrollbar-track{background:transparent}
 .track-list::-webkit-scrollbar-thumb{background:var(--t3);border-radius:99px}
 .track-list::-webkit-scrollbar-thumb:hover{background:var(--t2)}
-/* bottom fade — only meaningful once content actually overflows, but
-   harmless to always render since it sits behind the last row anyway */
-.track-list-wrap::after{
-  content:'';position:absolute;left:0;right:4px;bottom:0;height:28px;
+/* bottom fade — a real element (not a wrapper ::after) absolutely
+   positioned to exactly cover the scrollable .track-list box itself,
+   so it tracks the actual scrollbar edge and rounded corners instead
+   of guessing at offsets on the outer wrapper. Only shown once
+   content actually overflows (see has-overflow toggle in JS). */
+.track-fade{
+  position:absolute;inset:auto 0 0 0;height:28px;
   background:linear-gradient(to bottom, transparent, var(--bg) 92%);
-  pointer-events:none;border-radius:0 0 var(--r) var(--r);
+  pointer-events:none;
   opacity:0;transition:opacity .25s;
+  z-index:2;
 }
-.track-list-wrap.has-overflow::after{opacity:1}
+.track-list-wrap.has-overflow .track-fade{opacity:1}
 .track-row{display:flex;align-items:center;gap:13px;padding:9px 12px;background:var(--bgc);border:1px solid var(--br2);border-radius:var(--r);cursor:pointer;position:relative;overflow:hidden;transition:border-color .2s}
 .track-row::before{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:linear-gradient(90deg,var(--acbg),transparent);transition:width .4s var(--ease)}
 .track-row:hover::before,.track-row.playing::before{width:100%}
@@ -703,6 +707,7 @@ footer{padding:34px 0 26px;border-top:1px solid var(--br)}
     <p class="music-intro rv d2">Click any track to play.</p>
     <div class="track-list-wrap">
       <div class="track-list rv d2" id="tlist"><div class="sk"></div><div class="sk"></div><div class="sk"></div></div>
+      <div class="track-fade" aria-hidden="true"></div>
     </div>
     <div class="pbar" id="pbar">
       <div class="pb-row">
