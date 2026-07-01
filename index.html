@@ -220,11 +220,9 @@ img{max-width:100%;display:block}
 .track-list::-webkit-scrollbar-track{background:transparent}
 .track-list::-webkit-scrollbar-thumb{background:var(--t3);border-radius:99px}
 .track-list::-webkit-scrollbar-thumb:hover{background:var(--t2)}
-/* bottom fade — a real element (not a wrapper ::after) absolutely
-   positioned to exactly cover the scrollable .track-list box itself,
-   so it tracks the actual scrollbar edge and rounded corners instead
-   of guessing at offsets on the outer wrapper. Only shown once
-   content actually overflows (see has-overflow toggle in JS). */
+/* bottom fade — a real element positioned to exactly cover the
+   scrollable .track-list box, so it tracks the real scrollbar edge
+   and rounded corners instead of guessing an offset on the wrapper. */
 .track-fade{
   position:absolute;inset:auto 0 0 0;height:28px;
   background:linear-gradient(to bottom, transparent, var(--bg) 92%);
@@ -904,6 +902,10 @@ const CONFIGURED_CDN = (CFG.cdn||'').replace(/\/$/,'');
 const CDN = CONFIGURED_CDN.includes('/your-github-username/') ? '' : CONFIGURED_CDN;
 function $(id){return document.getElementById(id);}
 function esc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+/* esc() above intentionally skips quotes (fine for text content); this
+   variant also escapes " so raw file paths can safely go in a
+   data-* attribute even if they happen to contain one. */
+function escAttr(t){return esc(t).replace(/"/g,'&quot;');}
 
 /* ── Asset source priority ──
    1) Worker (CDN) — proxies the GitHub Contents API, which has NO
@@ -920,6 +922,26 @@ function assetUrl(path){
   if(!path) return '';
   const clean=String(path).replace(/^\/+/,'');
   return RAWBASE ? RAWBASE+'/'+clean : clean;
+}
+/* the "other" source — used only as a retry when the primary
+   (proxy/RAWBASE) URL for a specific file fails to load. Mirrors the
+   same resilience idea load() already uses for data.json, but applied
+   per-asset so one bad proxy response doesn't take down the whole
+   site's media. If RAWBASE already IS GitHub Raw (proxy not
+   configured), there's nothing else to fall back to. */
+function assetUrlFallback(path){
+  if(!path || !GHRAW || GHRAW===RAWBASE) return '';
+  const clean=String(path).replace(/^\/+/,'');
+  return GHRAW+'/'+clean;
+}
+/* generic <img> onerror handler: try the fallback host once, and only
+   remove the element if that second attempt also fails. */
+function imgFallback(img, path){
+  if(!img.dataset.triedFallback){
+    const fb = assetUrlFallback(path);
+    if(fb){ img.dataset.triedFallback='1'; img.src=fb; return; }
+  }
+  img.remove();
 }
 
 async function load(){
@@ -965,7 +987,7 @@ function render(d){
     clearInterval(window._npTimer);
     npBar.style.display = 'none';
   }
-  if(p.photo){const ph=$('ab-photo');ph.innerHTML=`<img src="${assetUrl(p.photo)}" alt="${esc(name)}" loading="lazy" onerror="this.remove()"/>`;}
+  if(p.photo){const ph=$('ab-photo');ph.innerHTML=`<img src="${assetUrl(p.photo)}" data-path="${escAttr(p.photo)}" alt="${esc(name)}" loading="lazy" onerror="imgFallback(this,this.dataset.path)"/>`;}
 
   $('ab-links').innerHTML=[
     ss.github?`<a href="${esc(ss.github)}" class="pill" target="_blank" rel="noopener"><i class="fa-brands fa-github"></i> GitHub</a>`:'',
@@ -989,7 +1011,7 @@ function render(d){
 
   const gal=(d||{}).gallery||[];
   if(gal.length){
-    $('ggrid').innerHTML=gal.map(g=>`<div class="gi" style="background:${esc(g.bg||'#1a1a1a')}" data-src="${esc(assetUrl(g.file))}" data-cap="${esc(g.caption||'')}">${g.file?`<img src="${assetUrl(g.file)}" alt="${esc(g.caption||'')}" loading="lazy" onerror="this.remove()"/>`:esc(g.emoji||'📷')}<div class="gi-cap">${esc(g.caption||'')}</div></div>`).join('');
+    $('ggrid').innerHTML=gal.map(g=>`<div class="gi" style="background:${esc(g.bg||'#1a1a1a')}" data-src="${esc(assetUrl(g.file))}" data-cap="${esc(g.caption||'')}">${g.file?`<img src="${assetUrl(g.file)}" data-path="${escAttr(g.file)}" alt="${esc(g.caption||'')}" loading="lazy" onerror="imgFallback(this,this.dataset.path)"/>`:esc(g.emoji||'📷')}<div class="gi-cap">${esc(g.caption||'')}</div></div>`).join('');
     $('ggrid').querySelectorAll('.gi').forEach(el=>{
       el.addEventListener('click',()=>{
         const src=el.dataset.src, cap=el.dataset.cap;
@@ -1016,7 +1038,7 @@ function buildMusic(data){
   const list=$('tlist');
   if(!tracks.length){list.innerHTML='<div style="text-align:center;color:var(--t3);padding:24px;font-size:.875rem">No tracks yet</div>';syncTrackListOverflow();return;}
   list.innerHTML=tracks.map((t,i)=>{
-    const coverImg=t.cover_img?`<img src="${assetUrl(t.cover_img)}" alt="" loading="lazy" onerror="this.remove()"/>`:'';
+    const coverImg=t.cover_img?`<img src="${assetUrl(t.cover_img)}" data-path="${escAttr(t.cover_img)}" alt="" loading="lazy" onerror="imgFallback(this,this.dataset.path)"/>`:'';
     return `<div class="track-row rv${t.file?'':' no-file'}" data-i="${i}" id="tr${i}"><div class="tr-art" style="background:${esc(t.cover_bg||'#222')}">${coverImg}${esc(t.cover_emoji||'🎵')}</div><div class="tr-info"><div class="tr-title">${esc(t.title||'?')}</div><div class="tr-artist">${esc(t.artist||'')}</div></div><div class="tr-right"><div class="tr-pi"><i class="fa-solid fa-play" id="pi${i}"></i></div><span class="tr-genre">${esc(t.genre||'')}</span><div class="tr-dur" id="td${i}">—</div></div></div>`;
   }).join('');
   document.querySelectorAll('.track-row').forEach(r=>r.addEventListener('click',()=>{const i=+r.dataset.i;if(!tracks[i]?.file)return;ci===i?togglePlay():loadTrack(i,true);}));
@@ -1187,10 +1209,12 @@ function applyID3Tags(tags, trackIdx){
   dbg('Final applied', 'ok', `title="${title}" artist="${artist}"`);
 }
 
+let audFallbackTried=false, audWantPlay=false;
 function loadTrack(i,auto=false){
   if(ci>-1){$('tr'+ci)?.classList.remove('playing');const p=$('pi'+ci);if(p)p.className='fa-solid fa-play';}
   ci=i;const t=tracks[i];
   if(!t?.file){playing=false;upPB();return;}
+  audFallbackTried=false; audWantPlay=auto;
   const url=assetUrl(t.file);
   aud.src=url;aud.load();
 
@@ -1202,7 +1226,15 @@ function loadTrack(i,auto=false){
     emojiEl.style.display='none';
     let img=covEl.querySelector('img');
     if(!img){img=document.createElement('img');covEl.appendChild(img);}
-    img.src=coverImg; img.onerror=()=>{img.remove();emojiEl.style.display='';};
+    img.dataset.triedFallback='';
+    img.onerror=()=>{
+      if(!img.dataset.triedFallback){
+        const fb=assetUrlFallback(t.cover_img);
+        if(fb){ img.dataset.triedFallback='1'; img.src=fb; return; }
+      }
+      img.remove(); emojiEl.style.display='';
+    };
+    img.src=coverImg;
   }else{
     const img=covEl.querySelector('img');if(img)img.remove();
     emojiEl.style.display='';
@@ -1220,6 +1252,28 @@ function loadTrack(i,auto=false){
   $('tr'+i)?.classList.add('playing');const pi=$('pi'+i);if(pi)pi.className='fa-solid fa-pause';
   if(auto){aud.play().catch(()=>{});playing=true;upPB();}
 }
+/* if the primary (proxy) URL 404s or errors for any reason, retry once
+   against GitHub Raw directly before giving up — same idea as
+   imgFallback() but for the actual playable audio, which previously
+   had zero fallback at all. */
+aud.onerror=()=>{
+  const t=tracks[ci];
+  if(!t?.file){ return; }
+  if(audFallbackTried){
+    dbg('Audio fallback', 'fail', 'GitHub Raw fallback also failed — file may genuinely be missing');
+    return;
+  }
+  const fb=assetUrlFallback(t.file);
+  if(!fb){
+    dbg('Audio load', 'fail', 'proxy URL failed and no fallback host is configured');
+    return;
+  }
+  audFallbackTried=true;
+  dbg('Audio fallback', 'info', 'proxy URL failed, retrying via GitHub Raw');
+  aud.src=fb; aud.load();
+  const dl=$('pb-dl'); if(dl) dl.href=fb;
+  if(audWantPlay) aud.play().catch(()=>{});
+};
 function togglePlay(){
   if(ci===-1){if(tracks.length)loadTrack(0,true);return;}
   if(playing)aud.pause();else aud.play().catch(()=>{});
