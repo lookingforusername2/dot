@@ -71,7 +71,15 @@
       "cover_bg": "linear-gradient(135deg,#1a1520,#2a1f35)"
     }
   ],
-  "gallery": [],
+  "gallery": [
+    {
+      "id": "1782894599667",
+      "file": "images/30817.jpg",
+      "caption": "Yalta, Ivan Aivazovsky",
+      "emoji": "🌊",
+      "bg": "linear-gradient(135deg,#161616,#222)"
+    }
+  ],
   "posts": [
     {
       "id": "1",
